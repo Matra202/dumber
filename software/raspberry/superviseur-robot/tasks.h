@@ -17,6 +17,7 @@
 
 #ifndef __TASKS_H__
 #define __TASKS_H__
+#define BATTERY_PERIOD 500000000
 
 #include <unistd.h>
 #include <iostream>
@@ -76,6 +77,7 @@ private:
     RT_TASK th_openComRobot;
     RT_TASK th_startRobot;
     RT_TASK th_move;
+    RT_TASK th_battery;
     
     /**********************************************************************/
     /* Mutex                                                              */
@@ -132,6 +134,8 @@ private:
      */
     void MoveTask(void *arg);
     
+    //read the battery
+    void ReadBattery(void *arg);
     /**********************************************************************/
     /* Queue services                                                     */
     /**********************************************************************/
