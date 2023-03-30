@@ -67,6 +67,7 @@ private:
     ComRobot robot;
     int robotStarted = 0;
     int move = MESSAGE_ROBOT_STOP;
+    int compteur;
     
     /**********************************************************************/
     /* Tasks                                                              */
@@ -136,6 +137,12 @@ private:
     
     //read the battery
     void ReadBattery(void *arg);
+    
+    //replace write to robot to count number of fail
+    Message *MyWrite(Message* msg);
+    
+    //send lost com to monitor, stop and init minitor and robot
+    void Close_communication_robot();
     /**********************************************************************/
     /* Queue services                                                     */
     /**********************************************************************/

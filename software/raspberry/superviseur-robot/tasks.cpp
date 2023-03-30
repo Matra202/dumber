@@ -54,6 +54,7 @@
 void Tasks::Init() {
     int status;
     int err;
+    compteur = 0;
 
     /**************************************************************************************/
     /* 	Mutex creation                                                                    */
@@ -244,6 +245,7 @@ void Tasks::SendToMonTask(void* arg) {
         cout << "Send msg to mon: " << msg->ToString() << endl << flush;
         rt_mutex_acquire(&mutex_monitor, TM_INFINITE);
         monitor.Write(msg); // The message is deleted with the Write
+        
         rt_mutex_release(&mutex_monitor);
     }
 }
@@ -339,7 +341,8 @@ void Tasks::StartRobotTask(void *arg) {
         rt_sem_p(&sem_startRobot, TM_INFINITE);
         cout << "Start robot without watchdog (";
         rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-        msgSend = robot.Write(robot.StartWithoutWD());
+        //msgSend = robot.Write(robot.StartWithoutWD());
+        msgSend = MyWrite(robot.StartWithoutWD());
         rt_mutex_release(&mutex_robot);
         cout << msgSend->GetID();
         cout << ")" << endl;
@@ -353,6 +356,43 @@ void Tasks::StartRobotTask(void *arg) {
             rt_mutex_release(&mutex_robotStarted);
         }
     }
+}
+
+Message *Tasks::MyWrite(Message* msg)
+{
+    bool echec;
+    Message *msgSend = nullptr, *toSend;
+    do{
+        toSend = msg->Copy();
+        echec = false;
+        msgSend = robot.Write(toSend);
+        cout << "\nMessage recu : " << msgSend << endl;
+        if(msgSend->CompareID(MESSAGE_ANSWER_ROBOT_TIMEOUT)){
+            compteur++;
+            cout << "\ncompteur value: " << compteur << endl;
+            echec = true;
+            if(compteur >= 3){
+                Close_communication_robot();
+            }
+        }
+    }
+    while(echec && compteur < 3);
+    compteur = 0;
+    delete(msg);
+    //cout << "\nMessage successfull, compteur value: " << compteur << endl;
+
+    return msgSend;
+}
+
+void Tasks::Close_communication_robot(){
+    WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_COM_ERROR));
+    cout << "Close_communication_robot" << endl; 
+    Stop();
+    cout << "Stop called" << endl; 
+
+    Init();
+    cout << "Init called" << endl; 
+
 }
 
 /**
@@ -385,7 +425,8 @@ void Tasks::MoveTask(void *arg) {
             cout << " move: " << cpMove;
             
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-            robot.Write(new Message((MessageID)cpMove));
+            //robot.Write(new Message((MessageID)cpMove));
+            MyWrite(new Message ((MessageID)cpMove));
             rt_mutex_release(&mutex_robot);
         }
         cout << endl << flush;
@@ -416,7 +457,8 @@ void Tasks::ReadBattery(void *arg) {
         rt_mutex_release(&mutex_robotStarted);
         if (rs == 1) {
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-            response = robot.Write(robot.GetBattery());
+            //response = robot.Write(robot.GetBattery());
+            response = MyWrite(robot.GetBattery());
             rt_mutex_release(&mutex_robot);
             cout << response->ToString();
         }
