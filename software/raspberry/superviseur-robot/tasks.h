@@ -17,7 +17,8 @@
 
 #ifndef __TASKS_H__
 #define __TASKS_H__
-#define BATTERY_PERIOD 500000000
+#define BATTERY_PERIOD 500000000 //500 ms
+#define CAMERA_PERIOD 100000000 //100 ms
 
 #include <unistd.h>
 #include <iostream>
@@ -78,6 +79,7 @@ private:
     RT_TASK th_startRobot;
     RT_TASK th_move;
     RT_TASK th_battery;
+    RT_TASK th_camera;
     
     /**********************************************************************/
     /* Mutex                                                              */
@@ -86,6 +88,7 @@ private:
     RT_MUTEX mutex_robot;
     RT_MUTEX mutex_robotStarted;
     RT_MUTEX mutex_move;
+    RT_MUTEX mutex_camera;
 
     /**********************************************************************/
     /* Semaphores                                                         */
@@ -94,6 +97,7 @@ private:
     RT_SEM sem_openComRobot;
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
+    RT_SEM sem_camera;
 
     /**********************************************************************/
     /* Message queues                                                     */
@@ -136,6 +140,10 @@ private:
     
     //read the battery
     void ReadBattery(void *arg);
+    
+    //camera thread
+    void GrabCamera(void *arg);
+    
     /**********************************************************************/
     /* Queue services                                                     */
     /**********************************************************************/

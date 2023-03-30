@@ -47,6 +47,8 @@
  * 7- Good luck !
  */
 
+Camera camera;
+
 /**
  * @brief Initialisation des structures de l'application (tâches, mutex, 
  * semaphore, etc.)
@@ -54,6 +56,7 @@
 void Tasks::Init() {
     int status;
     int err;
+    camera = Camera();
 
     /**************************************************************************************/
     /* 	Mutex creation                                                                    */
@@ -71,6 +74,10 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_mutex_create(&mutex_move, NULL)) {
+        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutex_camera, NULL)) {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -92,6 +99,10 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_sem_create(&sem_startRobot, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_camera, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -173,6 +184,10 @@ void Tasks::Run() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::ReadBattery, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&th_camera, (void(*)(void*)) & Tasks::GrabCamera, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -284,6 +299,26 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             rt_mutex_acquire(&mutex_move, TM_INFINITE);
             move = msgRcv->GetID();
             rt_mutex_release(&mutex_move);
+        } else if (msgRcv->CompareID(MESSAGE_CAM_OPEN)) {
+            if (int err = rt_task_create(&th_camera, "th_camera", 0, PRIORITY_TCAMERA, 0)) {
+                cerr << "Error task create: " << strerror(-err) << endl << flush;
+                exit(EXIT_FAILURE);
+            }
+            
+            cout << "Opening camera" << endl << flush;
+            if (camera.Open()) {
+                rt_sem_broadcast(&sem_camera);
+                cout << "Camera opened" << endl << flush;
+            }
+            else {
+                cout << "Failed to open camera" << endl << flush;
+                WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_NACK));
+            }
+        } else if (msgRcv->CompareID(MESSAGE_CAM_CLOSE)) {
+            cout << "Closing camera" << endl << flush;
+            camera.Close();
+            rt_task_delete(&th_camera);
+            cout << "Camera closed" << endl << flush;
         }
         delete(msgRcv); // mus be deleted manually, no consumer
     }
@@ -418,9 +453,37 @@ void Tasks::ReadBattery(void *arg) {
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
             response = robot.Write(robot.GetBattery());
             rt_mutex_release(&mutex_robot);
-            cout << response->ToString();
+            WriteInQueue(&q_messageToMon, response);
         }
-        cout << endl << flush;
+    }
+}
+
+/**
+ * @brief Thread handling periodic image capture.
+ */
+void Tasks::GrabCamera(void* arg) {
+    int rs;
+    
+    while (1) {
+    rt_sem_p(&sem_camera, TM_INFINITE);
+    
+    rt_task_set_periodic(NULL, TM_NOW, CAMERA_PERIOD);
+    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
+    
+    while (1) {
+        rt_task_wait_period(NULL);
+        cout << "Periodic battery update";
+        rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
+        rs = robotStarted;
+        rt_mutex_release(&mutex_robotStarted);
+        if (rs == 1) {
+            rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+            Img image = camera.Grab();
+            rt_mutex_release(&mutex_camera);
+            if (!image.img.empty()) WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
+        }
+    
+    }
     }
 }
 
