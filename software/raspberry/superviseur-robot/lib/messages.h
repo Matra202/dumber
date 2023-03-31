@@ -57,7 +57,7 @@ typedef enum {
     MESSAGE_CAM_POSITION_COMPUTE_STOP,
             
     // Messages for camera from Supervisor to Monitor 
-    MESSAGE_CAM_POSITION,
+    ,
     MESSAGE_CAM_IMAGE,
             
     // Messages for robot

@@ -50,6 +50,10 @@
 Camera camera;
 bool arenaSearch;
 bool arenaValid;
+bool startPosition;
+int idMachine = 1;  
+// on se donne l'ID du rasberry en question en dur pour check si l'ID robot trouvé est celui du nôtre
+
 
 /**
  * @brief Initialisation des structures de l'application (tâches, mutex, 
@@ -353,6 +357,12 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             arenaValid = false;
             rt_sem_broadcast(&sem_arena_confirmation);
         }
+        else if (msgRcv->CompareID(MESSAGE_CAM_POSITION_COMPUTE_START)){
+            startPosition = true;
+        }
+        else if (msgRcv->CompareID(MESSAGE_CAM_POSITION_COMPUTE_STOP)){
+            
+        }
         delete(msgRcv); // mus be deleted manually, no consumer
     }
 }
@@ -498,7 +508,7 @@ void Tasks::GrabCamera(void* arg) {
     int rs;
     bool cameraIsOpen;
     Arena arena;
-    
+    std::list<Position> l;
     rt_task_set_periodic(NULL, TM_NOW, CAMERA_PERIOD);
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     
@@ -518,7 +528,29 @@ void Tasks::GrabCamera(void* arg) {
                 Img image = camera.Grab();
                 if (arenaValid) {
                     image.DrawArena(arena);
+                    if (startPosition){
+                        l = image.SearchRobot(arena); 
+                        if (!l.empty()){
+                            bool foundRobot = false;
+                            for (std::list<Position>::iterator it = l.begin(); it != l.end(); ++it){
+                                if(it.robotID == idMachine){
+                                    //il s'agit de notre robot 
+                                    image.DrawRobot(it);
+                                    //TODO : SOUCIS ICI AVEC MESSGAE CAM POSITION !!!!!
+                                    WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION,&it));
+                                    foundRobot = true;
+                                }
+                            }
+                            if (!foundRobot){
+                                Position p = new Position();
+                                WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION,&p));
+                            }
+                                
+                        }
+                        
+                    }
                 }
+                
                 WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
             }
             if (cameraIsOpen & arenaSearch) {
