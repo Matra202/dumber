@@ -68,6 +68,7 @@ private:
     int robotStarted = 0;
     int move = MESSAGE_ROBOT_STOP;
     int compteur;
+    bool m_withWatchdog;
     
     /**********************************************************************/
     /* Tasks                                                              */

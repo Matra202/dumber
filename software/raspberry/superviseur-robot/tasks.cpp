@@ -55,7 +55,8 @@ void Tasks::Init() {
     int status;
     int err;
     compteur = 0;
-
+    m_withWatchdog = false;
+    
     /**************************************************************************************/
     /* 	Mutex creation                                                                    */
     /**************************************************************************************/
@@ -276,7 +277,16 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         } else if (msgRcv->CompareID(MESSAGE_ROBOT_COM_OPEN)) {
             rt_sem_v(&sem_openComRobot);
         } else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITHOUT_WD)) {
+            m_withWatchdog = false;
             rt_sem_v(&sem_startRobot);
+        } else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITH_WD)) {
+            m_withWatchdog = true;
+            rt_sem_v(&sem_startRobot);
+        /*} else if (msgRcv->CompareID(MESSAGE_ROBOT_RESET)) {
+            cout << "\n\n\n\n\n\n\nje suis la je suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la icije suis la iciici" << endl;
+            Close_communication_robot();
+            Stop();
+        */
         } else if (msgRcv->CompareID(MESSAGE_ROBOT_GO_FORWARD) ||
                 msgRcv->CompareID(MESSAGE_ROBOT_GO_BACKWARD) ||
                 msgRcv->CompareID(MESSAGE_ROBOT_GO_LEFT) ||
@@ -290,7 +300,6 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         delete(msgRcv); // mus be deleted manually, no consumer
     }
 }
-
 /**
  * @brief Thread opening communication with the robot.
  */
@@ -339,11 +348,21 @@ void Tasks::StartRobotTask(void *arg) {
 
         Message * msgSend;
         rt_sem_p(&sem_startRobot, TM_INFINITE);
-        cout << "Start robot without watchdog (";
         rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-        //msgSend = robot.Write(robot.StartWithoutWD());
-        msgSend = MyWrite(robot.StartWithoutWD());
+        
+        if(m_withWatchdog){
+            //msgSend = robot.Write(robot.StartWithoutWD());
+            cout << "Start robot with watchdog (";
+            msgSend = MyWrite(robot.StartWithWD());
+        }
+        else{
+            //msgSend = robot.Write(robot.StartWithoutWD());
+            cout << "Start robot without watchdog (";
+            msgSend = MyWrite(robot.StartWithoutWD());
+        }
+        
         rt_mutex_release(&mutex_robot);
+        
         cout << msgSend->GetID();
         cout << ")" << endl;
 
@@ -358,6 +377,9 @@ void Tasks::StartRobotTask(void *arg) {
     }
 }
 
+
+//faut creer une method pour periodiquement envoyer robot.reloadWD
+
 Message *Tasks::MyWrite(Message* msg)
 {
     bool echec;
@@ -365,8 +387,10 @@ Message *Tasks::MyWrite(Message* msg)
     do{
         toSend = msg->Copy();
         echec = false;
+        //rt_mutex_acquire(&mutex_robot, TM_INFINITE);
         msgSend = robot.Write(toSend);
-        cout << "\nMessage recu : " << msgSend << endl;
+        //rt_mutex_release(&mutex_robot);
+        //cout << "\nMessage recu : " << msgSend << endl;
         if(msgSend->CompareID(MESSAGE_ANSWER_ROBOT_TIMEOUT)){
             compteur++;
             cout << "\ncompteur value: " << compteur << endl;
@@ -385,13 +409,19 @@ Message *Tasks::MyWrite(Message* msg)
 }
 
 void Tasks::Close_communication_robot(){
-    WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_COM_ERROR));
     cout << "Close_communication_robot" << endl; 
-    Stop();
-    cout << "Stop called" << endl; 
+    rt_mutex_acquire(&mutex_robot, TM_INFINITE);
+    rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
+    robotStarted = 0;
+    rt_mutex_release(&mutex_robotStarted);
+    robot.Close();
+    rt_mutex_release(&mutex_robot);
+    WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_ROBOT_ERROR));
+    //Stop();
+    //cout << "Stop called" << endl; 
 
-    Init();
-    cout << "Init called" << endl; 
+    //Init();
+    //cout << "Init called" << endl; 
 
 }
 
