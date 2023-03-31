@@ -98,6 +98,7 @@ private:
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
     RT_SEM sem_camera;
+    RT_SEM sem_arena_confirmation;
 
     /**********************************************************************/
     /* Message queues                                                     */
