@@ -470,10 +470,8 @@ void Tasks::MoveTask(void *arg) {
             cout << " move: " << cpMove << "\n";
             
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-            cout << "PRISE MUTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEX" << endl << flush;
             robot.Write(new Message((MessageID)cpMove));
             rt_mutex_release(&mutex_robot);
-            cout << "LACHE MUTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEX" << endl << flush;
         }
         cout << endl << flush;
     }
