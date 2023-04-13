@@ -776,43 +776,18 @@ void Tasks::ResetSystem(){
     rt_sem_p(&sem_barrier, TM_INFINITE);
     while(1){
         rt_sem_p(&sem_resetSystem, TM_INFINITE);
-    
-        //rt_mutex_acquire(&mutex_monitor, TM_INFINITE);
-        //rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-        //Stop();
-        //rt_mutex_release(&mutex_monitor);
-        //rt_mutex_release(&mutex_robot);
-        cout << "\n here \n" << flush;
-       //rt_task_delete(&th_server);
-        //rt_task_delete(&th_sendToMon);
-       // rt_task_delete(&th_receiveFromMon);
-        /*rt_task_delete(&th_openComRobot);
-        rt_task_delete(&th_startRobot);
-        rt_task_delete(&th_move);
-        rt_task_delete(&th_battery);
-        rt_task_delete(&th_reloadWD);*/
-        /*if (err = rt_task_create(&th_receiveFromMon, "th_receiveFromMon", 0, PRIORITY_TRECEIVEFROMMON, 0)) {
-            cerr << "Error task create: " << strerror(-err) << endl << flush;
-            exit(EXIT_FAILURE);
-        }
-        if (err = rt_task_start(&th_receiveFromMon, (void(*)(void*)) & Tasks::ReceiveFromMonTask, this)) {
-            cerr << "Error task start: " << strerror(-err) << endl << flush;
-            exit(EXIT_FAILURE);
-        }*/
-       // Init();
-        //Run()
-        
+        cout << "Starting procedure \"RESET\" in 3 2 1.." << endl << flush; 
+       
         
         rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-        camera.Close();
-        cout << "\n here2\n" << flush;        
+        camera.Close();     
+        cout << "Camera closed " << endl << flush;
         rt_mutex_release(&mutex_camera);
         rt_mutex_acquire(&mutex_monitor, TM_INFINITE);
         rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-        cout << "\n here3\n" << flush;
         Stop();
+        cout << "Monitor and Robot closed " << endl << flush;
         rt_mutex_release(&mutex_robot);
-        cout << "\n here4\n" << flush;
         status = monitor.Open(SERVER_PORT);
         rt_mutex_release(&mutex_monitor);
 
@@ -823,6 +798,7 @@ void Tasks::ResetSystem(){
         };
         monitor.AcceptClient(); // Wait the monitor client
         cout << "Rock'n'Roll baby, client accepted!" << endl << flush;
+        cout << "Restart OK we can start the robot again" << endl << flush;
         rt_sem_broadcast(&sem_serverOk);
     }
 
