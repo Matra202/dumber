@@ -17,8 +17,11 @@
 
 #ifndef __TASKS_H__
 #define __TASKS_H__
-#define BATTERY_PERIOD 500000000 //500 ms
+
+#define BATTERY_PERIOD 500000000 //500ms
+#define RELOADWD_PERIOD 1000000000 //1s
 #define CAMERA_PERIOD 100000000 //100 ms
+
 
 #include <unistd.h>
 #include <iostream>
@@ -68,6 +71,8 @@ private:
     ComRobot robot;
     int robotStarted = 0;
     int move = MESSAGE_ROBOT_STOP;
+    int compteur;
+    bool m_withWatchdog;
     
     /**********************************************************************/
     /* Tasks                                                              */
@@ -79,6 +84,8 @@ private:
     RT_TASK th_startRobot;
     RT_TASK th_move;
     RT_TASK th_battery;
+    RT_TASK th_reloadWD;
+    RT_TASK th_resetSystem;
     RT_TASK th_camera;
     
     /**********************************************************************/
@@ -97,8 +104,11 @@ private:
     RT_SEM sem_openComRobot;
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
+    RT_SEM sem_reloadWD;
+    RT_SEM sem_resetSystem;
     RT_SEM sem_camera;
     RT_SEM sem_arena_confirmation;
+
 
     /**********************************************************************/
     /* Message queues                                                     */
@@ -141,10 +151,19 @@ private:
     
     //read the battery
     void ReadBattery(void *arg);
+
+    //replace write to robot to count number of fail
+    Message *MyWrite(Message* msg);
     
+    //periodicaly send reload watchdog orde
+    void ReloadWD();
+    
+    //send lost com to monitor, stop and init minitor and robot
+    void Close_communication_robot();
+
     //camera thread
     void GrabCamera(void *arg);
-    
+   
     /**********************************************************************/
     /* Queue services                                                     */
     /**********************************************************************/
@@ -162,6 +181,7 @@ private:
      */
     Message *ReadInQueue(RT_QUEUE *queue);
 
+    void ResetSystem();
 };
 
 #endif // __TASKS_H__ 

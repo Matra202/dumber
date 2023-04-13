@@ -114,7 +114,7 @@ Message *ComRobot::Write(Message* msg) {
 
         s = MessageToString(msg);
         AddChecksum(s);
-
+        
         //cout << "[" <<__PRETTY_FUNCTION__<<"] Send command: "<<s<<endl<<flush;
         int count = write(this->fd, s.c_str(), s.length()); //Filestream, bytes to write, number of bytes to write
 
@@ -224,6 +224,9 @@ Message* ComRobot::StringToMessage(string s) {
             break;
         case LABEL_ROBOT_UNKNOWN_COMMAND:
             msg = new Message(MESSAGE_ANSWER_ROBOT_UNKNOWN_COMMAND);
+            break;
+        case LABEL_ROBOT_RELOAD_WD:
+            msg = new Message(MESSAGE_ANSWER_ACK);
             break;
         case '0':
             msg = new MessageBattery(MESSAGE_ROBOT_BATTERY_LEVEL, BATTERY_EMPTY);
