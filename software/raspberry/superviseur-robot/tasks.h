@@ -17,7 +17,8 @@
 
 #ifndef __TASKS_H__
 #define __TASKS_H__
-#define BATTERY_PERIOD 500000000
+#define BATTERY_PERIOD 500000000 //500ms
+#define RELOADWD_PERIOD 1000000000 //1s
 
 #include <unistd.h>
 #include <iostream>
@@ -80,6 +81,8 @@ private:
     RT_TASK th_startRobot;
     RT_TASK th_move;
     RT_TASK th_battery;
+    RT_TASK th_reloadWD;
+    RT_TASK th_resetSystem;
     
     /**********************************************************************/
     /* Mutex                                                              */
@@ -96,6 +99,8 @@ private:
     RT_SEM sem_openComRobot;
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
+    RT_SEM sem_reloadWD;
+    RT_SEM sem_resetSystem;
 
     /**********************************************************************/
     /* Message queues                                                     */
@@ -142,6 +147,9 @@ private:
     //replace write to robot to count number of fail
     Message *MyWrite(Message* msg);
     
+    //periodicaly send reload watchdog orde
+    void ReloadWD();
+    
     //send lost com to monitor, stop and init minitor and robot
     void Close_communication_robot();
     /**********************************************************************/
@@ -161,6 +169,7 @@ private:
      */
     Message *ReadInQueue(RT_QUEUE *queue);
 
+    void ResetSystem();
 };
 
 #endif // __TASKS_H__ 
