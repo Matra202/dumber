@@ -21,11 +21,11 @@
 // Déclaration des priorités des taches
 #define PRIORITY_TSERVER 30
 #define PRIORITY_TOPENCOMROBOT 20
-#define PRIORITY_TMOVE 20
+#define PRIORITY_TMOVE 21
 #define PRIORITY_TSENDTOMON 22
 #define PRIORITY_TRECEIVEFROMMON 25
 #define PRIORITY_TSTARTROBOT 20
-#define PRIORITY_TCAMERA 21
+#define PRIORITY_TCAMERA 20
 #define PRIORITY_TBATTERY 31
 
 /*
@@ -50,6 +50,10 @@
 Camera camera;
 bool arenaSearch;
 bool arenaValid;
+bool startPosition;
+int idMachine = 13;  
+// on se donne l'ID du rasberry en question en dur pour check si l'ID robot trouvé est celui du nôtre
+
 
 /**
  * @brief Initialisation des structures de l'application (tâches, mutex, 
@@ -269,6 +273,9 @@ void Tasks::SendToMonTask(void* arg) {
         cout << "wait msg to send" << endl << flush;
         msg = ReadInQueue(&q_messageToMon);
         cout << "Send msg to mon: " << msg->ToString() << endl << flush;
+        if (msg->CompareID(MESSAGE_CAM_IMAGE)) {
+            
+        }
         rt_mutex_acquire(&mutex_monitor, TM_INFINITE);
         monitor.Write(msg); // The message is deleted with the Write
         rt_mutex_release(&mutex_monitor);
@@ -353,7 +360,17 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             arenaValid = false;
             rt_sem_broadcast(&sem_arena_confirmation);
         }
-        delete(msgRcv); // mus be deleted manually, no consumer
+        else if (msgRcv->CompareID(MESSAGE_CAM_POSITION_COMPUTE_START)){
+            rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+            startPosition = true;
+            rt_mutex_release(&mutex_camera);
+        }
+        else if (msgRcv->CompareID(MESSAGE_CAM_POSITION_COMPUTE_STOP)){
+            rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+            startPosition = false;
+            rt_mutex_release(&mutex_camera);
+        }
+        delete(msgRcv); // must be deleted manually, no consumer
     }
 }
 
@@ -450,7 +467,7 @@ void Tasks::MoveTask(void *arg) {
             cpMove = move;
             rt_mutex_release(&mutex_move);
             
-            cout << " move: " << cpMove;
+            cout << " move: " << cpMove << "\n";
             
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
             robot.Write(new Message((MessageID)cpMove));
@@ -495,10 +512,11 @@ void Tasks::ReadBattery(void *arg) {
  * @brief Thread handling periodic image capture.
  */
 void Tasks::GrabCamera(void* arg) {
+    Img image = camera.Grab();
     int rs;
     bool cameraIsOpen;
     Arena arena;
-    
+    std::list<Position> l;
     rt_task_set_periodic(NULL, TM_NOW, CAMERA_PERIOD);
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     
@@ -515,22 +533,62 @@ void Tasks::GrabCamera(void* arg) {
             cameraIsOpen = camera.IsOpen();
             if (cameraIsOpen & !arenaSearch) {
                 cout << "Periodic camera grab" << endl << flush;
-                Img image = camera.Grab();
+                Img image2 = camera.Grab();
+                image = *image2.Copy();
                 if (arenaValid) {
                     image.DrawArena(arena);
+                    if (startPosition){
+                        l = image.SearchRobot(arena); 
+                        if (!l.empty()){
+                            bool foundRobot = false;
+                            for (std::list<Position>::iterator it = l.begin(); it != l.end(); it++){
+                                if(it->robotId == idMachine){
+                                    //il s'agit de notre robot 
+                                    Position *P = new Position();
+                                    P->angle = it->angle;
+                                    P->center = it ->center;
+                                    P->direction = it->direction;
+                                    P->robotId = it->robotId;
+                                    image.DrawRobot(*P);
+                                    //TODO : SOUCIS ICI AVEC MESSGAE CAM POSITION !!!!!
+                                    WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION, *P));
+                                    foundRobot = true;
+                                    break;
+                                }
+                            }
+                            if (!foundRobot){
+                                Position *P = new Position();
+                                P->center.x = -1.0;
+                                P->center.y = -1.0;
+                                WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION, *P));
+                            }
+                                
+                        }
+                        
+                    }
                 }
-                WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
+                
+                if (!image.img.empty()) 
+                {
+                    cout << "coté normal" << image.ToString() << endl << flush;
+                    WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
+                }
             }
             if (cameraIsOpen & arenaSearch) {
                 cout << "Grab for arena search" << endl << flush;
-                Img image = camera.Grab();
+                Img image2 = camera.Grab();
+                image= *image2.Copy();
                 arena = image.SearchArena();
                 if (arena.IsEmpty()) {
                     WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_NACK));
                     arenaSearch = false;
                 } else {
                     image.DrawArena(arena);
-                    WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
+                    
+                    if (!image.img.empty()) {
+                        cout << "coté arene" << image.ToString() << endl << flush;
+                        WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, &image));
+                    }
                 }
                 rt_sem_p(&sem_arena_confirmation, TM_INFINITE);
                 arenaSearch = false;
