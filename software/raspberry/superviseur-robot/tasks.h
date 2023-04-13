@@ -17,8 +17,11 @@
 
 #ifndef __TASKS_H__
 #define __TASKS_H__
+
 #define BATTERY_PERIOD 500000000 //500ms
 #define RELOADWD_PERIOD 1000000000 //1s
+#define CAMERA_PERIOD 100000000 //100 ms
+
 
 #include <unistd.h>
 #include <iostream>
@@ -83,6 +86,7 @@ private:
     RT_TASK th_battery;
     RT_TASK th_reloadWD;
     RT_TASK th_resetSystem;
+    RT_TASK th_camera;
     
     /**********************************************************************/
     /* Mutex                                                              */
@@ -91,6 +95,7 @@ private:
     RT_MUTEX mutex_robot;
     RT_MUTEX mutex_robotStarted;
     RT_MUTEX mutex_move;
+    RT_MUTEX mutex_camera;
 
     /**********************************************************************/
     /* Semaphores                                                         */
@@ -101,6 +106,9 @@ private:
     RT_SEM sem_startRobot;
     RT_SEM sem_reloadWD;
     RT_SEM sem_resetSystem;
+    RT_SEM sem_camera;
+    RT_SEM sem_arena_confirmation;
+
 
     /**********************************************************************/
     /* Message queues                                                     */
@@ -143,7 +151,7 @@ private:
     
     //read the battery
     void ReadBattery(void *arg);
-    
+
     //replace write to robot to count number of fail
     Message *MyWrite(Message* msg);
     
@@ -152,6 +160,10 @@ private:
     
     //send lost com to monitor, stop and init minitor and robot
     void Close_communication_robot();
+
+    //camera thread
+    void GrabCamera(void *arg);
+   
     /**********************************************************************/
     /* Queue services                                                     */
     /**********************************************************************/
