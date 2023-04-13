@@ -53,7 +53,7 @@ Camera camera;
 bool arenaSearch;
 bool arenaValid;
 bool startPosition;
-int idMachine = 13;  
+int idMachine = 6;  
 // on se donne l'ID du rasberry en question en dur pour check si l'ID robot trouvé est celui du nôtre
 
 
@@ -800,8 +800,19 @@ void Tasks::ResetSystem(){
             exit(EXIT_FAILURE);
         }*/
        // Init();
-        //Run();
+        //Run()
+        
+        
+        rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+        camera.Close();
+        cout << "\n here2\n" << flush;        
+        rt_mutex_release(&mutex_camera);
         rt_mutex_acquire(&mutex_monitor, TM_INFINITE);
+        rt_mutex_acquire(&mutex_robot, TM_INFINITE);
+        cout << "\n here3\n" << flush;
+        Stop();
+        rt_mutex_release(&mutex_robot);
+        cout << "\n here4\n" << flush;
         status = monitor.Open(SERVER_PORT);
         rt_mutex_release(&mutex_monitor);
 
